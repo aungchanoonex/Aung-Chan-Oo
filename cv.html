@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional CV Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the CV document look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        
+        /* CV Preview container styles (Simulating an A4 page) */
+        #cv-preview {
+            background-color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            max-width: 210mm; /* A4 width */
+            min-height: 297mm; /* A4 height */
+        }
+
+        /* Styling for the print view */
+        @media print {
+            body {
+                background: none;
+            }
+            .no-print {
+                display: none !important;
+            }
+            #cv-preview {
+                box-shadow: none;
+                max-width: 100%;
+                min-height: auto;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#1d4ed8', /* Indigo 700 */
+                        'accent': '#60a5fa', /* Blue 400 */
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto">
+        
+        <!-- Left Pane: Input Form (No-Print) -->
+        <div class="lg:w-1/2 no-print bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+            <h1 class="text-3xl font-extrabold text-primary mb-6">CV Data Entry</h1>
+            
+            <form id="cv-form" class="space-y-6">
+
+                <!-- 1. PERSONAL DETAILS -->
+                <div class="border-b border-gray-200 pb-4">
+                    <h2 class="text-xl font-bold text-gray-700 mb-3">1. Personal Details</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" id="name" placeholder="Full Name (e.g., Jane Doe)" class="form-input" required>
+                        <input type="email" id="email" placeholder="Email Address" class="form-input" required>
+                        <input type="tel" id="phone" placeholder="Phone Number" class="form-input">
+                        <input type="url" id="link" placeholder="LinkedIn/Portfolio URL" class="form-input">
+                    </div>
+                </div>
+
+                <!-- 2. PROFESSIONAL SUMMARY -->
+                <div class="border-b border-gray-200 pb-4">
+                    <h2 class="text-xl font-bold text-gray-700 mb-3">2. Professional Summary</h2>
+                    <textarea id="summary" rows="4" placeholder="A brief, powerful summary of your career goals and key achievements (2-3 sentences)." class="form-input"></textarea>
+                </div>
+
+                <!-- 3. EXPERIENCE -->
+                <div class="border-b border-gray-200 pb-4">
+                    <h2 class="text-xl font-bold text-gray-700 mb-3">3. Work Experience</h2>
+                    <div id="experience-container" class="space-y-4">
+                        <!-- Experience items will be appended here -->
+                    </div>
+                    <button type="button" onclick="addExperience()" class="mt-4 w-full bg-accent text-white py-2 rounded-lg hover:bg-primary transition duration-200 text-sm font-semibold shadow-md">
+                        + Add Experience
+                    </button>
+                </div>
+
+                <!-- 4. EDUCATION -->
+                <div class="border-b border-gray-200 pb-4">
+                    <h2 class="text-xl font-bold text-gray-700 mb-3">4. Education</h2>
+                    <div id="education-container" class="space-y-4">
+                        <!-- Education items will be appended here -->
+                    </div>
+                    <button type="button" onclick="addEducation()" class="mt-4 w-full bg-accent text-white py-2 rounded-lg hover:bg-primary transition duration-200 text-sm font-semibold shadow-md">
+                        + Add Education
+                    </button>
+                </div>
+
+                <!-- 5. SKILLS -->
+                <div class="pb-4">
+                    <h2 class="text-xl font-bold text-gray-700 mb-3">5. Key Skills</h2>
+                    <input type="text" id="skills" placeholder="List skills, separated by commas (e.g., JavaScript, Tailwind CSS, Project Management)" class="form-input">
+                </div>
+            </form>
+
+            <button onclick="window.print()" class="w-full mt-6 bg-green-600 text-white font-bold text-lg py-3 rounded-xl hover:bg-green-700 transition duration-300 shadow-xl">
+                Print CV / Save as PDF
+            </button>
+        </div>
+
+        <!-- Right Pane: CV Preview -->
+        <div class="lg:w-1/2 flex justify-center">
+            <div id="cv-preview" class="w-full p-8 md:p-12 text-gray-800 text-sm rounded-lg">
+                <!-- Content will be injected here by JavaScript -->
+                <div class="text-center py-10 text-gray-500">
+                    <p class="text-2xl font-bold mb-2">Start Typing to Build Your CV</p>
+                    <p>Fill out the form on the left to see the live preview.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Global utility to make form inputs look consistent
+        document.querySelectorAll('.form-input').forEach(input => {
+            input.classList.add('w-full', 'p-3', 'border', 'border-gray-300', 'rounded-lg', 'focus:ring-2', 'focus:ring-primary', 'focus:border-primary', 'outline-none', 'transition');
+        });
+
+        const cvForm = document.getElementById('cv-form');
+        const cvPreview = document.getElementById('cv-preview');
+        const experienceContainer = document.getElementById('experience-container');
+        const educationContainer = document.getElementById('education-container');
+
+        // Initial setup for dynamic fields
+        addExperience();
+        addEducation();
+        
+        // --- Dynamic Field Management ---
+
+        function createExperienceTemplate(id) {
+            return `
+                <div id="exp-${id}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 relative">
+                    <button type="button" onclick="removeDynamicItem('exp-${id}')" class="absolute top-2 right-2 text-red-500 hover:text-red-700 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" /></svg>
+                    </button>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" data-type="title" placeholder="Job Title" class="form-input exp-input" required>
+                        <input type="text" data-type="company" placeholder="Company Name" class="form-input exp-input" required>
+                        <input type="text" data-type="dates" placeholder="Start Date - End Date (e.g., 2018 - 2022)" class="form-input exp-input md:col-span-2">
+                    </div>
+                    <textarea data-type="description" rows="3" placeholder="Key accomplishments and responsibilities (use bullet points or hyphens in text)." class="form-input exp-input mt-4"></textarea>
+                </div>
+            `;
+        }
+
+        function createEducationTemplate(id) {
+            return `
+                <div id="edu-${id}" class="p-4 bg-gray-50 rounded-lg border border-gray-200 relative">
+                    <button type="button" onclick="removeDynamicItem('edu-${id}')" class="absolute top-2 right-2 text-red-500 hover:text-red-700 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 000 2h6a1 1 0 100-2H7z" clip-rule="evenodd" /></svg>
+                    </button>
+                    <input type="text" data-type="degree" placeholder="Degree/Certificate" class="form-input edu-input mb-4" required>
+                    <input type="text" data-type="institution" placeholder="Institution Name" class="form-input edu-input mb-4" required>
+                    <input type="text" data-type="dates" placeholder="Graduation Year / Dates (e.g., 2017)" class="form-input edu-input">
+                </div>
+            `;
+        }
+
+        function addExperience() {
+            const id = Date.now();
+            experienceContainer.insertAdjacentHTML('beforeend', createExperienceTemplate(id));
+            cvForm.addEventListener('input', updateCVPreview); // Re-attach listener for new elements
+        }
+
+        function addEducation() {
+            const id = Date.now();
+            educationContainer.insertAdjacentHTML('beforeend', createEducationTemplate(id));
+            cvForm.addEventListener('input', updateCVPreview); // Re-attach listener for new elements
+        }
+
+        function removeDynamicItem(id) {
+            document.getElementById(id).remove();
+            updateCVPreview();
+        }
+
+        // --- CV Rendering Logic ---
+
+        function getExperienceData() {
+            const experiences = [];
+            experienceContainer.querySelectorAll('.p-4').forEach(item => {
+                const data = {};
+                item.querySelectorAll('.exp-input').forEach(input => {
+                    data[input.dataset.type] = input.value;
+                });
+                // Only add if there is a title
+                if (data.title) {
+                    experiences.push(data);
+                }
+            });
+            return experiences;
+        }
+
+        function getEducationData() {
+            const education = [];
+            educationContainer.querySelectorAll('.p-4').forEach(item => {
+                const data = {};
+                item.querySelectorAll('.edu-input').forEach(input => {
+                    data[input.dataset.type] = input.value;
+                });
+                // Only add if there is a degree
+                if (data.degree) {
+                    education.push(data);
+                }
+            });
+            return education;
+        }
+        
+        function formatSectionTitle(title) {
+            return `<h3 class="text-lg font-bold uppercase text-primary border-b-2 border-primary pb-1 mb-3 mt-6">${title}</h3>`;
+        }
+
+        function formatExperience(exp) {
+            if (!exp.title) return '';
+            return `
+                <div class="mb-4">
+                    <div class="flex justify-between items-start">
+                        <p class="font-bold text-sm">${exp.title} - ${exp.company}</p>
+                        <p class="text-xs text-gray-500 whitespace-nowrap ml-2">${exp.dates}</p>
+                    </div>
+                    <p class="text-xs mt-1 leading-normal whitespace-pre-line">${exp.description}</p>
+                </div>
+            `;
+        }
+
+        function formatEducation(edu) {
+            if (!edu.degree) return '';
+            return `
+                <div class="mb-3">
+                    <div class="flex justify-between items-start">
+                        <p class="font-bold text-sm text-gray-700">${edu.degree}</p>
+                        <p class="text-xs text-gray-500 whitespace-nowrap ml-2">${edu.dates}</p>
+                    </div>
+                    <p class="text-xs italic">${edu.institution}</p>
+                </div>
+            `;
+        }
+        
+        function formatSkills(skills) {
+            if (!skills) return '';
+            const skillArray = skills.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            
+            return `<p class="text-xs leading-relaxed">${skillArray.join(' | ')}</p>`;
+        }
+
+
+        function updateCVPreview() {
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            const link = document.getElementById('link').value;
+            const summary = document.getElementById('summary').value;
+            const skills = document.getElementById('skills').value;
+            const experienceData = getExperienceData();
+            const educationData = getEducationData();
+
+            let htmlContent = '';
+
+            // 1. HEADER (NAME & CONTACT)
+            if (name) {
+                htmlContent += `
+                    <div class="text-center pb-4 mb-4 border-b border-gray-200">
+                        <h1 class="text-3xl font-extrabold text-gray-900 uppercase">${name || 'Your Full Name'}</h1>
+                        <div class="text-xs text-gray-600 space-x-3 mt-1 flex justify-center flex-wrap">
+                            ${email ? `<span class="hover:text-primary"><a href="mailto:${email}">${email}</a></span>` : ''}
+                            ${phone ? `<span class="font-bold">&bull;</span> <span>${phone}</span>` : ''}
+                            ${link ? `<span class="font-bold">&bull;</span> <span class="hover:text-primary"><a href="${link}" target="_blank" rel="noopener noreferrer">${link.replace(/(^\w+:|^)\/\//, '').replace(/\/$/, '')}</a></span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 2. PROFESSIONAL SUMMARY
+            if (summary) {
+                htmlContent += formatSectionTitle('Professional Summary');
+                htmlContent += `<p class="text-sm leading-relaxed">${summary}</p>`;
+            }
+
+            // 3. WORK EXPERIENCE
+            if (experienceData.length > 0) {
+                htmlContent += formatSectionTitle('Work Experience');
+                htmlContent += experienceData.map(formatExperience).join('');
+            }
+
+            // 4. EDUCATION
+            if (educationData.length > 0) {
+                htmlContent += formatSectionTitle('Education');
+                htmlContent += educationData.map(formatEducation).join('');
+            }
+            
+            // 5. SKILLS
+            if (skills) {
+                htmlContent += formatSectionTitle('Key Skills');
+                htmlContent += formatSkills(skills);
+            }
+
+
+            // Update the preview area
+            if (htmlContent) {
+                 cvPreview.innerHTML = htmlContent;
+            } else {
+                 cvPreview.innerHTML = `
+                    <div class="text-center py-10 text-gray-500">
+                        <p class="text-2xl font-bold mb-2">Start Typing to Build Your CV</p>
+                        <p>Fill out the form on the left to see the live preview.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Listen for all input changes on the form
+        cvForm.addEventListener('input', updateCVPreview);
+        
+        // Initial call to set up the preview
+        window.onload = updateCVPreview;
+        
+    </script>
+</body>
+</html>

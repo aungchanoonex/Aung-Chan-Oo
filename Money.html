@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Finance Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f7fb;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #2196F3;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      padding: 20px;
+    }
+    .summary {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .card {
+      flex: 1;
+      min-width: 200px;
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+      font-weight: bold;
+      color: #fff;
+    }
+    .income { background: #4CAF50; }
+    .expense { background: #f44336; }
+    .balance { background: #2196F3; }
+    form {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      margin-bottom: 20px;
+    }
+    form input, form select, form button {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    form button {
+      background: #2196F3;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    form button:hover { background: #0b7dda; }
+    .transactions {
+      list-style: none;
+      padding: 0;
+    }
+    .transactions li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      background: #fafafa;
+      border-left: 5px solid;
+    }
+    .transactions li.income { border-color: #4CAF50; }
+    .transactions li.expense { border-color: #f44336; }
+    .transactions li span.amount { font-weight: bold; }
+    .transactions li button {
+      border: none;
+      background: none;
+      color: #f44336;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .charts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 30px;
+    }
+    canvas {
+      background: #fff;
+      padding: 10px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>💰 Finance Dashboard</h1>
+    <p>Track your income, expenses & balance with analytics</p>
+  </header>
+  <div class="container">
+
+    <!-- Summary -->
+    <div class="summary">
+      <div class="card income">Income: $<span id="income">0.00</span></div>
+      <div class="card expense">Expenses: $<span id="expense">0.00</span></div>
+      <div class="card balance">Balance: $<span id="balance">0.00</span></div>
+    </div>
+
+    <!-- Form -->
+    <form id="transaction-form">
+      <select id="type" required>
+        <option value="income">Income</option>
+        <option value="expense">Expense</option>
+      </select>
+      <input type="number" id="amount" placeholder="Amount" required>
+      <input type="text" id="description" placeholder="Description">
+      <input type="date" id="date" required>
+      <button type="submit">Add</button>
+    </form>
+
+    <!-- Transactions -->
+    <h2>Transactions</h2>
+    <ul id="transactions" class="transactions"></ul>
+
+    <!-- Charts -->
+    <div class="charts">
+      <canvas id="dailyChart"></canvas>
+      <canvas id="monthlyChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('transaction-form');
+    const transactionsEl = document.getElementById('transactions');
+    const incomeEl = document.getElementById('income');
+    const expenseEl = document.getElementById('expense');
+    const balanceEl = document.getElementById('balance');
+    const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+
+    let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+
+    function updateSummary() {
+      let income = 0, expense = 0;
+      transactions.forEach(t => {
+        if (t.type === 'income') income += t.amount;
+        else expense += t.amount;
+      });
+      incomeEl.textContent = income.toFixed(2);
+      expenseEl.textContent = expense.toFixed(2);
+      balanceEl.textContent = (income - expense).toFixed(2);
+    }
+
+    function renderTransactions() {
+      transactionsEl.innerHTML = '';
+      transactions.forEach((t, i) => {
+        const li = document.createElement('li');
+        li.classList.add(t.type);
+        li.innerHTML = `
+          <div>
+            <strong>${t.description || 'No description'}</strong><br>
+            <small>${t.date}</small>
+          </div>
+          <div>
+            <span class="amount">${t.type === 'income' ? '+' : '-'}$${t.amount.toFixed(2)}</span>
+            <button onclick="deleteTransaction(${i})">✖</button>
+          </div>
+        `;
+        transactionsEl.appendChild(li);
+      });
+    }
+
+    function updateCharts() {
+      // Daily chart (today’s income vs expenses)
+      const today = new Date().toISOString().slice(0,10);
+      let dailyIncome = 0, dailyExpense = 0;
+      transactions.forEach(t => {
+        if (t.date === today) {
+          if (t.type === 'income') dailyIncome += t.amount;
+          else dailyExpense += t.amount;
+        }
+      });
+      if (window.dailyChart) window.dailyChart.destroy();
+      window.dailyChart = new Chart(dailyCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Income', 'Expense'],
+          datasets: [{
+            data: [dailyIncome, dailyExpense],
+            backgroundColor: ['#4CAF50','#f44336']
+          }]
+        }
+      });
+
+      // Monthly chart
+      const monthlyData = {};
+      transactions.forEach(t => {
+        const month = t.date.slice(0,7);
+        if (!monthlyData[month]) monthlyData[month] = { income:0, expense:0 };
+        if (t.type === 'income') monthlyData[month].income += t.amount;
+        else monthlyData[month].expense += t.amount;
+      });
+      const labels = Object.keys(monthlyData).sort();
+      const incomes = labels.map(m => monthlyData[m].income);
+      const expenses = labels.map(m => monthlyData[m].expense);
+      if (window.monthlyChart) window.monthlyChart.destroy();
+      window.monthlyChart = new Chart(monthlyCtx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label:'Income', data: incomes, backgroundColor:'#4CAF50' },
+            { label:'Expense', data: expenses, backgroundColor:'#f44336' }
+          ]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero:true } } }
+      });
+    }
+
+    function saveAndRender() {
+      localStorage.setItem('transactions', JSON.stringify(transactions));
+      renderTransactions();
+      updateSummary();
+      updateCharts();
+    }
+
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const type = document.getElementById('type').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+      const description = document.getElementById('description').value;
+      const date = document.getElementById('date').value || new Date().toISOString().slice(0,10);
+
+      if (isNaN(amount) || amount <= 0) {
+        alert('Enter valid amount');
+        return;
+      }
+      transactions.push({ type, amount, description, date });
+      form.reset();
+      saveAndRender();
+    });
+
+    function deleteTransaction(i) {
+      transactions.splice(i, 1);
+      saveAndRender();
+    }
+
+    document.getElementById('date').value = new Date().toISOString().slice(0,10);
+    saveAndRender();
+  </script>
+</body>
+</html>
